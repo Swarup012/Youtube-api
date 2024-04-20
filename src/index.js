@@ -1,4 +1,4 @@
-// require('dotenv').config({path:'./env'})   
+// require('dotenv').config({path:'./env'})
 //here we import .env (secret) file for fast access
 import dotenv from "dotenv";
 
