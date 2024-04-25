@@ -20,7 +20,8 @@ connectDB()
     });
   })
   .catch((error) => {
-    console.log("Mongodb connection fail!!", error);
+    // console.log("Mongodb connection fail!!", error);
+    throw(error)
   });
 
 /*

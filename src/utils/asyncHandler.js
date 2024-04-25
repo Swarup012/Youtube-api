@@ -12,12 +12,6 @@ export {asyncHandler}
 
 
 
-
-
-
-
-
-
 //operation with try and catch
 /*
 const asyncHandler = (fn) => async(req,res,next)=>{

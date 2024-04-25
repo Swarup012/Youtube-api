@@ -221,7 +221,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     return res
       .status(200)
       .cookie("accessToken", accessToken, options)
-      .cookie("refreshToken", refreshToken, options)
+      .cookie("refreshToken", newRefreshToken, options)
       .json(
         new ApiResponse(
           200,
@@ -259,7 +259,7 @@ const getCurrentUser = asyncHandler(async (req, res) => {
 const updateCurrentUserDetails = asyncHandler(async (req, res) => {
   const { fullname, email } = req.body;
 
-  if (!fullname || email) {
+  if (!fullname || !email) {
     throw new ApiError(400, "All files are required");
   }
 
@@ -331,6 +331,66 @@ const userCoverImgUpdate = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, user, "Cover image is updated"));
 });
+
+const getUserChannelProfile = asyncHandler(async(req,res)=>{
+  const {username} = req.params
+
+  if(!username?.trim()){
+    throw new ApiError(400,"User name not defined")
+  }
+
+  const channel = await User.aggregate([
+    {
+      $match:{
+        username: username?.toLowerCase()
+      }
+    },
+    {
+      $lookup:{
+        from:"subscription",
+        localField:"_id",
+        foreignField:"channel",
+        as:"subscribers"
+      }
+    },
+    {
+      $lookup:{
+        from:"subscription",
+        localField:"_id",
+        foreignField:"subscriber",
+        as:"subscriberedTo"
+      }
+    },
+    {
+      $addFields:{
+        subscribersCount:{
+          $size:"$subscribers"
+        },
+        subscribersChannelCount:{
+          $size:"$subscriberedTo"
+        },
+        isSubscribed:{
+          $cond:{
+            if:{$in: [req.user?._id, "$subscribers.subscriber"]}
+          }
+        }
+      }
+    },
+    {
+      $project:{
+        fullname:1,
+        username:1,
+        email:1,
+        subscribersCount:1,
+        subscribersChannelCount:1,
+        isSubscribed:1,
+        avatar:1,
+        coverImage:1
+      }
+    }
+  ])
+  console.log("this is channel",channel)
+})
 
 export {
   registerUser,
