@@ -332,65 +332,124 @@ const userCoverImgUpdate = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, user, "Cover image is updated"));
 });
 
-const getUserChannelProfile = asyncHandler(async(req,res)=>{
-  const {username} = req.params
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+  const { username } = req.params;
 
-  if(!username?.trim()){
-    throw new ApiError(400,"User name not defined")
+  if (!username?.trim()) {
+    throw new ApiError(400, "User name not defined");
   }
 
   const channel = await User.aggregate([
     {
-      $match:{
-        username: username?.toLowerCase()
-      }
+      $match: {
+        username: username?.toLowerCase(),
+      },
     },
     {
-      $lookup:{
-        from:"subscription",
-        localField:"_id",
-        foreignField:"channel",
-        as:"subscribers"
-      }
+      $lookup: {
+        from: "subscription",
+        localField: "_id",
+        foreignField: "channel",
+        as: "subscribers",
+      },
     },
     {
-      $lookup:{
-        from:"subscription",
-        localField:"_id",
-        foreignField:"subscriber",
-        as:"subscriberedTo"
-      }
+      $lookup: {
+        from: "subscription",
+        localField: "_id",
+        foreignField: "subscriber",
+        as: "subscriberedTo",
+      },
     },
     {
-      $addFields:{
-        subscribersCount:{
-          $size:"$subscribers"
+      $addFields: {
+        subscribersCount: {
+          $size: "$subscribers",
         },
-        subscribersChannelCount:{
-          $size:"$subscriberedTo"
+        subscribersChannelCount: {
+          $size: "$subscriberedTo",
         },
-        isSubscribed:{
-          $cond:{
-            if:{$in: [req.user?._id, "$subscribers.subscriber"]}
-          }
-        }
-      }
+        isSubscribed: {
+          $cond: {
+            if: { $in: [req.user?._id, "$subscribers.subscriber"] },
+          },
+        },
+      },
     },
     {
-      $project:{
-        fullname:1,
-        username:1,
-        email:1,
-        subscribersCount:1,
-        subscribersChannelCount:1,
-        isSubscribed:1,
-        avatar:1,
-        coverImage:1
-      }
-    }
-  ])
-  console.log("this is channel",channel)
-})
+      $project: {
+        fullname: 1,
+        username: 1,
+        email: 1,
+        subscribersCount: 1,
+        subscribersChannelCount: 1,
+        isSubscribed: 1,
+        avatar: 1,
+        coverImage: 1,
+      },
+    },
+  ]);
+  console.log("this is channel", channel);
+  if (!channel?.length) {
+    throw new ApiError(404, "channel does not exists");
+  }
+
+  return res.status(200).json(new ApiResponse(200, channel, "channel exist"));
+});
+
+const getWatchHistory = asyncHandler(async (req, res) => {
+  const user = await User.aggregate([
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(req.user._id),
+      },
+    },
+    {
+      $lookup: {
+        from: "videos",
+        localField: "watchHistory",
+        foreignField: "_id",
+        as: "watchHistory",
+        pipeline: [
+          {
+            $lookup: {
+              from: "users",
+              localField: "owner",
+              foreignField: "_id",
+              as: "owner",
+              pipeline: [
+                {
+                  $project: {
+                    fullName: 1,
+                    username: 1,
+                    avatar: 1,
+                  },
+                },
+              ],
+            },
+          },
+          {
+            $addFields: {
+              owner: {
+                $first: "$owner",
+              },
+            },
+          },
+        ],
+      },
+    },
+  ]);
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        user[0].watchHistory,
+        "Watch history fetched successfully"
+      )
+    );
+});
 
 export {
   registerUser,
@@ -402,4 +461,6 @@ export {
   userAvatarUpdate,
   getCurrentUser,
   updateCurrentUserDetails,
+  getUserChannelProfile,
+  getWatchHistory,
 };
